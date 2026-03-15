@@ -76,10 +76,11 @@ pub mod crowdfunding {
 
         // Requirement: Transfer all SOL from vault to creator using invoke_signed for PDA vault
         let campaign_key = campaign.key();
+        let bump = ctx.bumps.vault;
         let seeds = &[
             b"vault",
             campaign_key.as_ref(),
-            &[ctx.bumps.vault],
+            &[bump],
         ];
         let signer = &[&seeds[..]];
 
@@ -119,10 +120,11 @@ pub mod crowdfunding {
 
         // Requirement: Transfer donor's contribution back from vault (PDA signed)
         let campaign_key = campaign.key();
+        let bump = ctx.bumps.vault;
         let seeds = &[
             b"vault",
             campaign_key.as_ref(),
-            &[ctx.bumps.vault],
+            &[bump],
         ];
         let signer = &[&seeds[..]];
 
