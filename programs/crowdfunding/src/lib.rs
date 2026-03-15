@@ -38,6 +38,11 @@ pub mod crowdfunding {
     pub fn contribute(ctx: Context<Contribute>, amount: u64) -> Result<()> {
         let campaign = &mut ctx.accounts.campaign;
         let contribution = &mut ctx.accounts.contribution;
+        let clock = Clock::get()?;
+        let current_time = clock.unix_timestamp;
+
+        // CRITICAL FIX: Prevent contributions after deadline
+        require!(current_time < campaign.deadline, ErrorCode::CampaignEnded);
 
         // Requirement: Transfer SOL from donor to campaign vault (PDA)
         let cpi_accounts = anchor_lang::system_program::Transfer {
@@ -49,12 +54,13 @@ pub mod crowdfunding {
         
         anchor_lang::system_program::transfer(cpi_ctx, amount)?;
 
-        // Update state
-        campaign.raised += amount;
+        // Update state with safe arithmetic
+        campaign.raised = campaign.raised.checked_add(amount).ok_or(ErrorCode::Overflow)?;
+        
         if contribution.amount == 0 {
             contribution.donor = ctx.accounts.donor.key();
         }
-        contribution.amount += amount;
+        contribution.amount = contribution.amount.checked_add(amount).ok_or(ErrorCode::Overflow)?;
 
         // Log requirement: "Contributed: {amount} lamports, total={raised}"
         msg!("Contributed: {} lamports, total={}", amount, campaign.raised);
@@ -106,7 +112,7 @@ pub mod crowdfunding {
 
     /// Allows a donor to get money back if campaign failed after deadline.
     pub fn refund(ctx: Context<Refund>) -> Result<()> {
-        let campaign = &ctx.accounts.campaign;
+        let campaign = &mut ctx.accounts.campaign;
         let contribution = &mut ctx.accounts.contribution;
         let clock = Clock::get()?;
         let current_time = clock.unix_timestamp;
@@ -142,7 +148,10 @@ pub mod crowdfunding {
             signer,
         )?;
 
+        // WARNING FIX: Keep state consistent
+        campaign.raised = campaign.raised.checked_sub(amount_to_refund).ok_or(ErrorCode::Underflow)?;
         contribution.amount = 0;
+
         // Log requirement: "Refunded: {amount} lamports"
         msg!("Refunded: {} lamports", amount_to_refund);
         Ok(())
@@ -212,6 +221,7 @@ pub struct Withdraw<'info> {
 
 #[derive(Accounts)]
 pub struct Refund<'info> {
+    #[account(mut)]
     pub campaign: Account<'info, Campaign>,
     
     #[account(
@@ -255,6 +265,8 @@ pub enum ErrorCode {
     DeadlineInPast,
     #[msg("Campaign is still ongoing.")]
     CampaignOngoing,
+    #[msg("Campaign has already ended.")]
+    CampaignEnded,
     #[msg("Goal not reached, creator cannot withdraw.")]
     GoalNotReached,
     #[msg("Campaign has already been claimed.")]
@@ -265,4 +277,8 @@ pub enum ErrorCode {
     NoContributionFound,
     #[msg("Only the creator can call this function.")]
     NotCreator,
+    #[msg("Arithmetic overflow.")]
+    Overflow,
+    #[msg("Arithmetic underflow.")]
+    Underflow,
 }
