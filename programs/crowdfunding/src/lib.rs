@@ -44,6 +44,9 @@ pub mod crowdfunding {
         // CRITICAL FIX: Prevent contributions after deadline
         require!(current_time < campaign.deadline, ErrorCode::CampaignEnded);
         
+        // WARNING FIX: Prevent zero-amount contributions
+        require!(amount > 0, ErrorCode::ZeroAmount);
+        
         // EXTRA SAFETY: Prevent contributions if already claimed
         require!(!campaign.claimed, ErrorCode::AlreadyClaimed);
 
@@ -194,7 +197,7 @@ pub struct Contribute<'info> {
         seeds = [b"vault", campaign.key().as_ref()],
         bump
     )]
-    pub vault: AccountInfo<'info>,
+    pub vault: SystemAccount<'info>,
 
     #[account(mut)]
     pub donor: Signer<'info>,
@@ -228,19 +231,20 @@ pub struct Refund<'info> {
     pub campaign: Account<'info, Campaign>,
     
     #[account(
-        mut,
-        seeds = [b"contribution", donor.key().as_ref(), campaign.key().as_ref()],
-        bump
+        mut, 
+        seeds = [b"contribution", donor.key().as_ref(), campaign.key().as_ref()], 
+        bump,
+        close = donor
     )]
     pub contribution: Account<'info, Contribution>,
-
+    
     /// CHECK: Safe vault PDA
     #[account(
         mut,
         seeds = [b"vault", campaign.key().as_ref()],
         bump
     )]
-    pub vault: AccountInfo<'info>,
+    pub vault: SystemAccount<'info>,
 
     #[account(mut)]
     pub donor: Signer<'info>,
@@ -280,6 +284,8 @@ pub enum ErrorCode {
     NoContributionFound,
     #[msg("Only the creator can call this function.")]
     NotCreator,
+    #[msg("Contribution amount must be greater than zero.")]
+    ZeroAmount,
     #[msg("Arithmetic overflow.")]
     Overflow,
     #[msg("Arithmetic underflow.")]
