@@ -215,7 +215,7 @@ pub struct Withdraw<'info> {
         seeds = [b"vault", campaign.key().as_ref()],
         bump
     )]
-    pub vault: AccountInfo<'info>,
+    pub vault: SystemAccount<'info>,
 
     #[account(
         mut, 
