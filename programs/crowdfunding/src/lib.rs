@@ -5,7 +5,7 @@ use anchor_lang::solana_program::{
     system_instruction,
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("CYunzofmkHK7gVcchq7JsvdtkMNkKy9W7pN3VkbzUBuY");
 
 #[program]
 pub mod crowdfunding {
@@ -43,6 +43,9 @@ pub mod crowdfunding {
 
         // CRITICAL FIX: Prevent contributions after deadline
         require!(current_time < campaign.deadline, ErrorCode::CampaignEnded);
+        
+        // EXTRA SAFETY: Prevent contributions if already claimed
+        require!(!campaign.claimed, ErrorCode::AlreadyClaimed);
 
         // Requirement: Transfer SOL from donor to campaign vault (PDA)
         let cpi_accounts = anchor_lang::system_program::Transfer {

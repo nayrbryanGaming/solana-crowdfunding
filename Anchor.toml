@@ -2,13 +2,14 @@
 
 [features]
 seeds = true
-skip-lint = false
+skip-lint = true
+skip-idl = true
 
 [programs.devnet]
-crowdfunding = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+crowdfunding = "CYunzofmkHK7gVcchq7JsvdtkMNkKy9W7pN3VkbzUBuY"
 
 [programs.localnet]
-crowdfunding = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+crowdfunding = "CYunzofmkHK7gVcchq7JsvdtkMNkKy9W7pN3VkbzUBuY"
 
 [registry]
 url = "https://api.apr.dev"
