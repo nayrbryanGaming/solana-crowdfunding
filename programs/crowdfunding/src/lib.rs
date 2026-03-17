@@ -162,6 +162,24 @@ pub mod crowdfunding {
         msg!("Refunded: {} lamports", amount_to_refund);
         Ok(())
     }
+
+    /// INNOVATION: Allows the creator to close the campaign account and reclaim rent
+    /// after the campaign is finished (claimed or expired).
+    pub fn close_campaign(ctx: Context<CloseCampaign>) -> Result<()> {
+        let campaign = &ctx.accounts.campaign;
+        let clock = Clock::get()?;
+        let current_time = clock.unix_timestamp;
+
+        // Allow closing if:
+        // 1. Funds were successfully claimed
+        // 2. OR Campaign failed and enough time has passed (e.g., 30 days after deadline)
+        let can_close = campaign.claimed || (current_time > campaign.deadline + 2592000 && campaign.raised < campaign.goal);
+        
+        require!(can_close, ErrorCode::CannotCloseYet);
+
+        msg!("Campaign closed by creator. Rent reclaimed.");
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -251,6 +269,19 @@ pub struct Refund<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct CloseCampaign<'info> {
+    #[account(
+        mut, 
+        address = campaign.creator @ ErrorCode::NotCreator,
+        close = creator
+    )]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account]
 pub struct Campaign {
     pub creator: Pubkey,
@@ -290,4 +321,6 @@ pub enum ErrorCode {
     Overflow,
     #[msg("Arithmetic underflow.")]
     Underflow,
+    #[msg("Campaign cannot be closed yet. Must be claimed or significantly past deadline.")]
+    CannotCloseYet,
 }
